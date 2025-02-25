@@ -18,7 +18,7 @@ int main(int argc, char *argv[], char *envp[]) {
   int socket_fd = socket(AF_INET, SOCK_STREAM, 0);
   okay("Socket created successfully");
 
-  struct sockaddr_in server, client;
+  struct sockaddr_in server;
   server.sin_family = AF_INET;
   server.sin_addr.s_addr = htonl(INADDR_ANY);
   server.sin_port = htons(PORT);
@@ -30,18 +30,18 @@ int main(int argc, char *argv[], char *envp[]) {
   info("Listening on port %d", PORT);
 
   while (1) {
+    struct sockaddr_in client;
     socklen_t client_len = sizeof(client);
-    accept(socket_fd, (struct sockaddr *)&client, &client_len);
+    int client_fd = accept(socket_fd, (struct sockaddr *)&client, &client_len);
     okay("New connection accepted from %s:%d", inet_ntoa(client.sin_addr), ntohs(client.sin_port));
 
     char response[] =
       "HTTP/1.1 200 OK\r\n"
       "Content-Type: text/plain\r\n"
-      "Content-Length: 13\r\n"
+      "Content-Length: 19\r\n"
       "\r\n"
-      "HTTP from scratch!";
+      "HTTP from scratch!\n";
 
-    int client_fd = socket(AF_INET, SOCK_STREAM, 0);
     send(client_fd, response, sizeof(response) - 1, 0);
     close(client_fd);
     info("Connection closed");
