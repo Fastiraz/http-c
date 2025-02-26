@@ -18,7 +18,13 @@ typedef struct Request {
   char *path;
 } req;
 
+typedef struct Response {
+  char *content;
+  int size;
+} res;
+
 req parse_request (char*);
+res read_page (const char* path);
 
 int main(int argc, char *argv[], char *envp[]) {
   if (argc != 1)
@@ -51,18 +57,23 @@ int main(int argc, char *argv[], char *envp[]) {
       req result = parse_request(buffer);
       info("Method: %s\n", result.method);
       info("Path: %s\n", result.path);
+
+      res page = read_page(result.path);
+
+      char response[BUFFER_SIZE] = {0};
+      int response_length = snprintf(response, BUFFER_SIZE,
+        "HTTP/1.1 200 OK\r\n"
+        "Content-Type: text/plain\r\n"
+        "Content-Length: %d\r\n"
+        "\r\n"
+        "%s",
+        page.size, page.content ? page.content : "File not found");
+
+      send(client_fd, response, sizeof(response) - 1, 0);
     } else {
       warn("No data received or read failed.");
     }
 
-    char response[] =
-      "HTTP/1.1 200 OK\r\n"
-      "Content-Type: text/plain\r\n"
-      "Content-Length: 19\r\n"
-      "\r\n"
-      "HTTP from scratch!\n";
-
-    send(client_fd, response, sizeof(response) - 1, 0);
     close(client_fd);
     info("Connection closed");
   }
@@ -81,4 +92,20 @@ req parse_request(char *request) {
   result.path = strdup(path);
 
   return result;
+}
+
+res read_page (const char *path) {
+  res page = { NULL, 0 };
+  FILE *file = fopen(path +1, "rb");
+
+  fseek(file, 0, SEEK_END);
+  page.size = ftell(file);
+  rewind(file);  /* same as fseek(file, 0, SEEK_SET); */
+
+  page.content = malloc(page.size + 1);
+  fread(page.content, page.size, 1, file);
+  page.content[page.size] = '\0';
+
+  fclose(file);
+  return page;
 }
